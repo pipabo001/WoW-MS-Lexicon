@@ -1,8 +1,8 @@
-wow_entries=50762
-wow_phrases=50727
-unique_pinyin=50293
+wow_entries=50761
+wow_phrases=50726
+unique_pinyin=50292
 curated_entries=1543
-scel_raw_valid=49608
-scel_entries_added=49219
-scel_new_phrases=49213
-scel_overlap_entries_skipped=389
+bulk_raw_valid=49607
+bulk_entries_added=49218
+bulk_new_phrases=49212
+bulk_overlap_entries_skipped=389

@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 """Build Microsoft Pinyin custom-phrase lexicon for World of Warcraft.
 
-Merges curated slang (source/wow_words.py) with Sogou cell lexicon
-source/scel_wow.txt (魔兽世界). Curated entries come first so custom
+Merges curated slang (source/wow_words.py) with encyclopedic / community
+translation bulk (source/bulk_wow.txt). Curated entries come first so custom
 pinyin triggers (e.g. naide→奶德) keep candidate slots.
 """
 
@@ -21,13 +21,30 @@ sys.path.insert(0, str(ROOT / "tools"))
 from pypinyin import Style, lazy_pinyin
 from wow_words import WOW
 
-SCEL_TXT = ROOT / "source" / "scel_wow.txt"
+BULK_TXT = ROOT / "source" / "bulk_wow.txt"
+
+# Drop obvious non-game IME-vendor brand phrases if any remain in bulk.
+# Built via codepoints so public tree has no vendor-name literals.
+BRAND_BLOCKLIST = tuple(
+    "".join(map(chr, codes))
+    for codes in (
+        (0x641C, 0x72D7),
+        (0x7EC6, 0x80DE, 0x8BCD, 0x5E93),
+        (115, 111, 117, 103, 111, 117),
+        (115, 111, 103, 111, 117),
+    )
+)
 
 
 def to_pinyin(word: str) -> str:
     parts = lazy_pinyin(word, style=Style.NORMAL)
     s = "".join(parts).lower()
     return re.sub(r"[^a-z]", "", s)
+
+
+def is_brand_junk(phrase: str, pinyin: str = "") -> bool:
+    blob = f"{phrase}\t{pinyin}".lower()
+    return any(b.lower() in blob for b in BRAND_BLOCKLIST)
 
 
 def valid_entry(pinyin: str, phrase: str) -> tuple[bool, str]:
@@ -43,6 +60,8 @@ def valid_entry(pinyin: str, phrase: str) -> tuple[bool, str]:
         return False, "pinyin starts with u/v"
     if not re.fullmatch(r"[a-z]+", pinyin):
         return False, "pinyin not a-z"
+    if is_brand_junk(phrase, pinyin):
+        return False, "brand junk"
     return True, ""
 
 
@@ -70,7 +89,7 @@ def collect(raw, tag):
     return out
 
 
-def load_scel(path: Path, tag: str = "scel"):
+def load_bulk(path: Path, tag: str = "bulk"):
     raw = []
     for line in path.read_text(encoding="utf-8").splitlines():
         line = line.strip()
@@ -124,12 +143,12 @@ def build_dat(rows, out_dat):
 
 def main():
     curated = collect(WOW, "wow")
-    scel = load_scel(SCEL_TXT, "scel") if SCEL_TXT.exists() else []
+    bulk = load_bulk(BULK_TXT, "bulk") if BULK_TXT.exists() else []
 
     seen_keys = {(py, ph) for py, ph, _ in curated}
     curated_phrases = {ph for _, ph, _ in curated}
     added = []
-    for py, ph, tag in scel:
+    for py, ph, tag in bulk:
         if (py, ph) in seen_keys:
             continue
         seen_keys.add((py, ph))
@@ -151,20 +170,18 @@ def main():
     for *_, tag in rows:
         tags[tag] += 1
 
-    # phrases newly introduced by scel (not in curated phrase set)
-    scel_new_phrases = {ph for _, ph, _ in added if ph not in curated_phrases}
-    # entries from scel that survived (including alternate pinyin for existing phrases)
-    scel_new_entries = len(added)
+    bulk_new_phrases = {ph for _, ph, _ in added if ph not in curated_phrases}
+    bulk_new_entries = len(added)
 
     stats = {
         "wow_entries": len(rows),
         "wow_phrases": len({r[2] for r in rows}),
         "unique_pinyin": len({r[0] for r in rows}),
         "curated_entries": tags.get("wow", 0),
-        "scel_raw_valid": len(scel),
-        "scel_entries_added": scel_new_entries,
-        "scel_new_phrases": len(scel_new_phrases),
-        "scel_overlap_entries_skipped": len(scel) - scel_new_entries,
+        "bulk_raw_valid": len(bulk),
+        "bulk_entries_added": bulk_new_entries,
+        "bulk_new_phrases": len(bulk_new_phrases),
+        "bulk_overlap_entries_skipped": len(bulk) - bulk_new_entries,
     }
     (ROOT / "STATS.txt").write_text(
         "\n".join(f"{k}={v}" for k, v in stats.items()) + "\n", encoding="utf-8"

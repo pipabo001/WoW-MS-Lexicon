@@ -35566,7 +35566,6 @@ songwangshouwangbaodehuowu	送往守望堡的货物
 songwangtakuilindexinjian	送往塔奎林的信件
 songzhenduangun	松针短棍
 songzhenfazhang	松针法杖
-sougoubiaozhundaciku	搜狗标准大词库
 souhunzhe	搜魂者
 sousuobaoshi	搜索宝石
 souxunruanniguai	搜寻软泥怪

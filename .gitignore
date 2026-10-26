@@ -1,4 +1,5 @@
+*.pyc
 .venv/
 __pycache__/
-*.pyc
+source/__pycache__/
 tools/_mschxudp_in.txt
